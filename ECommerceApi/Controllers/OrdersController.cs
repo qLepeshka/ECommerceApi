@@ -1,9 +1,11 @@
 ﻿using ECommerceApi.Interfaces;
-using ECommerceApi.Models;
+using ECommerceApi.Models.DTOs;
 using Microsoft.AspNetCore.Mvc;
-using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Mvc.Rendering;
+using ECommerceApi.DTOs.Orders;
+using ECommerceApi.Models;
 
 namespace ECommerceApi.Controllers
 {
@@ -11,58 +13,113 @@ namespace ECommerceApi.Controllers
     [ApiController]
     public class OrdersController : ControllerBase
     {
-        private readonly IOrderRepository _orderRepository;
+        private readonly IOrderService _orderService;
 
-        public OrdersController(IOrderRepository orderRepository)
+        public OrdersController(IOrderService orderService)
         {
-            _orderRepository = orderRepository;
+            _orderService = orderService;
         }
 
-        [HttpGet("{id}", Name = "GetOrderById")]
-        public async Task<ActionResult<Order>> GetOrderById(int id)
+        [HttpGet]
+        [ProducesResponseType(typeof(IEnumerable<OrderDto>), 200)]
+        public async Task<ActionResult<IEnumerable<OrderDto>>> GetOrders()
         {
-            var order = await _orderRepository.GetOrderByIdAsync(id);
+            var orders = await _orderService.GetAllOrdersAsync();
+            return Ok(orders);
+        }
 
-            if (order == null)
-            {
-                return NotFound();
-            }
-
+        [HttpGet("{id}")]
+        [ProducesResponseType(typeof(OrderDto), 200)]
+        [ProducesResponseType(404)]
+        public async Task<ActionResult<OrderDto>> GetOrder(int id)
+        {
+            var order = await _orderService.GetOrderByIdAsync(id);
+            if (order == null) return NotFound();
             return Ok(order);
         }
 
         [HttpPost]
-        public async Task<ActionResult<Order>> CreateOrder([FromBody] Order newOrder)
+        [ProducesResponseType(typeof(OrderDto), 201)]
+        [ProducesResponseType(400)]
+        public async Task<ActionResult<OrderDto>> CreateOrder(DTOs.Orders.CreateOrderDto createOrderDto)
         {
-
-            if (newOrder == null)
+            try
             {
-                return BadRequest("Order data is null.");
+                var order = await _orderService.CreateOrderAsync(createOrderDto);
+                return CreatedAtAction(nameof(GetOrder), new { id = order.Id }, order);
             }
-
-            if (!ModelState.IsValid)
+            catch (ArgumentException ex)
             {
-                return BadRequest(ModelState);
+                return BadRequest(new { message = ex.Message });
             }
+        }
 
-            if (newOrder.Items != null && newOrder.Items.Any())
+        [HttpPut("{id}")]
+        [ProducesResponseType(204)]
+        [ProducesResponseType(400)]
+        [ProducesResponseType(404)]
+        public async Task<IActionResult> UpdateOrder(int id, DTOs.Orders.UpdateOrderDto updateOrderDto)
+        {
+            try
             {
-                newOrder.TotalAmount = newOrder.Items.Sum(item => item.Quantity * item.Price);
+                var result = await _orderService.UpdateOrderAsync(id, updateOrderDto);
+                if (!result) return NotFound();
+                return NoContent();
             }
-            else
+            catch (InvalidOperationException ex)
             {
-                newOrder.TotalAmount = 0;
+                return BadRequest(new { message = ex.Message });
             }
+        }
+        [HttpDelete("{id}")]
+        [ProducesResponseType(204)]
+        [ProducesResponseType(404)]
+        public async Task<IActionResult> DeleteOrder(int id)
+        {
+            var result = await _orderService.DeleteOrderAsync(id);
+            if (!result) return NotFound();
+            return NoContent();
+        }
 
-            if (newOrder.OrderDate == default(System.DateTime))
+        [HttpGet("status/{status}")]
+        [ProducesResponseType(typeof(IEnumerable<OrderDto>), 200)]
+        [ProducesResponseType(404)]
+        public async Task<ActionResult<IEnumerable<OrderDto>>> GetOrdersByStatus(OrderStatus status)
+        {
+            var orders = await _orderService.GetOrdersByStatusAsync(status);
+            if (!orders.Any())
             {
-                newOrder.OrderDate = System.DateTime.UtcNow;
+                return NotFound($"Заказы со статусом '{status}' не найдены.");
             }
+            return Ok(orders);
+        }
 
+        [HttpPost("{orderId}/items")]
+        [ProducesResponseType(204)]
+        [ProducesResponseType(400)]
+        [ProducesResponseType(404)]
+        public async Task<IActionResult> AddItemToOrder(int orderId, AddItemToOrderDto addItemDto)
+        {
+            try
+            {
+                var result = await _orderService.AddItemToOrderAsync(orderId, addItemDto);
+                if (!result) return NotFound($"Заказ с ID {orderId} не найден.");
+                return NoContent();
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
 
-            var createdOrder = await _orderRepository.AddOrderAsync(newOrder);
-
-            return CreatedAtAction(nameof(GetOrderById), new { id = createdOrder.Id }, createdOrder);
+        [HttpDelete("{orderId}/items/{productId}")]
+        [ProducesResponseType(204)]
+        [ProducesResponseType(404)]
+        public async Task<IActionResult> RemoveItemFromOrder(int orderId, int productId)
+        {
+            var result = await _orderService.RemoveItemFromOrderAsync(orderId, productId);
+            if (!result) return NotFound($"Позиция с товаром ID {productId} в заказе ID {orderId} не найдена или заказ не существует.");
+            return NoContent();
         }
     }
 }

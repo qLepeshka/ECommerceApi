@@ -310,3 +310,4 @@ C:\1Программирование\work1\ECommerceApi\ECommerceApi\obj\Debug\n
 C:\1Программирование\work1\ECommerceApi\ECommerceApi\obj\Debug\net9.0\ECommerceApi.pdb
 C:\1Программирование\work1\ECommerceApi\ECommerceApi\obj\Debug\net9.0\ECommerceApi.genruntimeconfig.cache
 C:\1Программирование\work1\ECommerceApi\ECommerceApi\obj\Debug\net9.0\ref\ECommerceApi.dll
+C:\1Программирование\work1\ECommerceApi\ECommerceApi\obj\Debug\net9.0\ECommerceApi.sourcelink.json

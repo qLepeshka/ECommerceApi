@@ -1,28 +1,15 @@
-﻿using System;
-using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
-using System.Collections.Generic;
+﻿using ECommerceApi.Models.DTOs;
 
 namespace ECommerceApi.Models
 {
     public class Product
     {
         public int Id { get; set; }
-
-        [Required]
-        [MaxLength(255)]
-        public string Name { get; set; }
-
-        public string? Description { get; set; }
-
-        [Column(TypeName = "decimal(18,2)")]
+        public string Name { get; set; } = null!;
         public decimal Price { get; set; }
-
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-
+        public int StockQuantity { get; set; }
         public int CategoryId { get; set; }
-        public Category Category { get; set; }
-
+        public Category Category { get; set; } = null!;
         public ICollection<OrderItem> OrderItems { get; set; } = new List<OrderItem>();
     }
 }

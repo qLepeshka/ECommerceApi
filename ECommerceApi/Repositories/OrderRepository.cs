@@ -1,7 +1,10 @@
 ﻿using ECommerceApi.Data;
 using ECommerceApi.Interfaces;
 using ECommerceApi.Models;
+
 using Microsoft.EntityFrameworkCore;
+
+
 namespace ECommerceApi.Repositories
 {
     public class OrderRepository : IOrderRepository
@@ -13,46 +16,75 @@ namespace ECommerceApi.Repositories
             _context = context;
         }
 
-        public async Task AddOrderAsync(Order order)
+        public async Task<IEnumerable<Order>> GetAllAsync()
+        {
+            return await _context.Orders
+                .Include(o => o.OrderItems)
+                    .ThenInclude(oi => oi.Product)
+                .ToListAsync();
+        }
+
+        public async Task<Order> GetByIdAsync(int id)
+        {
+            return await _context.Orders
+                .Include(o => o.OrderItems)
+                    .ThenInclude(oi => oi.Product)
+                .FirstOrDefaultAsync(o => o.Id == id);
+        }
+
+        public async Task<Order> AddAsync(Order order)
         {
             _context.Orders.Add(order);
             await _context.SaveChangesAsync();
+            return order;
         }
 
-        public async Task UpdateOrderAsync(Order order)
+        public async Task<bool> UpdateAsync(Order order)
         {
-            _context.Entry(order).State = EntityState.Modified;
-            await _context.SaveChangesAsync();
+            _context.Orders.Update(order);
+            return await _context.SaveChangesAsync() > 0;
         }
 
-        public async Task DeleteOrderAsync(int id)
+        public async Task<bool> DeleteAsync(int id)
         {
             var order = await _context.Orders.FindAsync(id);
-            if (order != null)
-            {
-                _context.Orders.Remove(order);
-                await _context.SaveChangesAsync();
-            }
-        }
+            if (order == null) return false;
 
-        public async Task<IEnumerable<Order>> GetAllOrdersAsync()
+            _context.Orders.Remove(order);
+            return await _context.SaveChangesAsync() > 0;
+        }
+        public async Task<IEnumerable<Order>> GetOrdersByStatusAsync(OrderStatus status)
         {
             return await _context.Orders
-                                 .Include(o => o.Items)
-                                 .ToListAsync();
+                .Where(o => o.Status == status)
+                .Include(o => o.OrderItems)
+                    .ThenInclude(oi => oi.Product)
+                .ToListAsync();
         }
 
-        public async Task<Order> GetOrderByIdAsync(int id)
+        public async Task<OrderItem> GetOrderItemAsync(int orderId, int productId)
         {
-            return await _context.Orders
-                                 .Include(o => o.Items)
-                                 .FirstOrDefaultAsync(o => o.Id == id);
-
+            return await _context.OrderItems
+                .Where(oi => oi.OrderId == orderId && oi.ProductId == productId)
+                .FirstOrDefaultAsync();
         }
 
-        Task<Order> IOrderRepository.AddOrderAsync(Order order)
+        public async Task<bool> AddOrderItemAsync(OrderItem orderItem)
         {
-            throw new NotImplementedException();
+            _context.OrderItems.Add(orderItem);
+            return await _context.SaveChangesAsync() > 0;
+        }
+
+        public async Task<bool> RemoveOrderItemAsync(OrderItem orderItem)
+        {
+            _context.OrderItems.Remove(orderItem);
+            return await _context.SaveChangesAsync() > 0;
+        }
+
+        public async Task<bool> UpdateOrderItemAsync(OrderItem orderItem)
+        {
+            _context.OrderItems.Update(orderItem);
+            return await _context.SaveChangesAsync() > 0;
         }
     }
 }
